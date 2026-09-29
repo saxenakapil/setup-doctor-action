@@ -1,5 +1,5 @@
 name: "Setup Doctor"
-description: "Score and audit an AI coding agent setup (Claude Code, Codex, Copilot CLI, Cursor). Local-only, read-only, no network access beyond installing the tool itself."
+description: "Score and audit an AI coding agent setup (Claude Code, Codex, Copilot CLI, Cursor). Local-only, read-only."
 author: "Kapil Saxena"
 branding:
   icon: "activity"
