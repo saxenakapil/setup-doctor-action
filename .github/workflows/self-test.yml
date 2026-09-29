@@ -1,0 +1,63 @@
+name: self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  nothing-to-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: doctor
+      - run: |
+          if [ -n "${{ steps.doctor.outputs.score }}" ]; then
+            echo "expected an empty score output for a repo with no agent config, got '${{ steps.doctor.outputs.score }}'"
+            exit 1
+          fi
+
+  real-score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p fixture
+          echo "Run npm test before committing." > fixture/CLAUDE.md
+      - uses: ./
+        id: doctor
+        with:
+          path: fixture
+          agent: claude
+          scope: project
+      - run: |
+          if [ "${{ steps.doctor.outputs.score }}" != "100" ]; then
+            echo "expected score 100, got '${{ steps.doctor.outputs.score }}'"
+            exit 1
+          fi
+          if [ "${{ steps.doctor.outputs.band }}" != "Excellent" ]; then
+            echo "expected band Excellent, got '${{ steps.doctor.outputs.band }}'"
+            exit 1
+          fi
+
+  fail-under-gates-the-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p fixture
+          echo "Run npm test before committing." > fixture/CLAUDE.md
+      - uses: ./
+        id: doctor
+        continue-on-error: true
+        with:
+          path: fixture
+          agent: claude
+          scope: project
+          fail-under: 101
+      - run: |
+          if [ "${{ steps.doctor.outcome }}" != "failure" ]; then
+            echo "expected the action step to fail under an impossible fail-under threshold, outcome was '${{ steps.doctor.outcome }}'"
+            exit 1
+          fi
