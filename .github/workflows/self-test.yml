@@ -41,6 +41,22 @@ jobs:
             exit 1
           fi
 
+  tagged-ref-resolves:
+    # Same as nothing-to-check, but using the public "@v1" reference the
+    # README tells real consumers to use, not the local "./" reference the
+    # other jobs use. Confirms the tag actually resolves and runs, not just
+    # that the action.yml logic itself is correct.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: saxenakapil/setup-doctor-action@v1
+        id: doctor
+      - run: |
+          if [ -n "${{ steps.doctor.outputs.score }}" ]; then
+            echo "expected an empty score output for a repo with no agent config, got '${{ steps.doctor.outputs.score }}'"
+            exit 1
+          fi
+
   fail-under-gates-the-job:
     runs-on: ubuntu-latest
     steps:
