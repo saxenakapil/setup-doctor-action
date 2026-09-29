@@ -1,0 +1,73 @@
+name: "Setup Doctor"
+description: "Score and audit an AI coding agent setup (Claude Code, Codex, Copilot CLI, Cursor). Local-only, read-only, no network access beyond installing the tool itself."
+author: "Kapil Saxena"
+branding:
+  icon: "activity"
+  color: "orange"
+
+inputs:
+  path:
+    description: "Project directory to audit"
+    required: false
+    default: "."
+  agent:
+    description: "claude | codex | cursor | copilot | all"
+    required: false
+    default: "all"
+  scope:
+    description: "project | global | all"
+    required: false
+    default: "all"
+  fail-under:
+    description: "Fail the job if the score drops below this number. Leave empty for no threshold."
+    required: false
+    default: ""
+  compare:
+    description: "Fail the job on any score regression since the last --ci run in this job (needs a persisted .setupdoctor-history.jsonl, e.g. via actions/cache)."
+    required: false
+    default: "false"
+  min-severity:
+    description: "Hide findings below this severity (low | medium | high | critical) from the printed report. The score itself is unaffected."
+    required: false
+    default: ""
+  config:
+    description: "Path to a .setupdoctorrc-shaped config file, instead of the default <path>/.setupdoctorrc"
+    required: false
+    default: ""
+  node-version:
+    description: "Node.js version to set up before running"
+    required: false
+    default: "22"
+
+outputs:
+  score:
+    description: "The 0-100 score (empty string if nothing was checked)"
+    value: ${{ steps.run.outputs.score }}
+  band:
+    description: "Excellent | Good | Needs work | Poor (empty string if nothing was checked)"
+    value: ${{ steps.run.outputs.band }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - id: run
+      shell: bash
+      run: |
+        set +e -o pipefail
+        npx --yes setup-doctor@latest doctor "${{ inputs.path }}" --ci --format json \
+          --agent "${{ inputs.agent }}" \
+          --scope "${{ inputs.scope }}" \
+          ${{ inputs.fail-under != '' && format('--fail-under {0}', inputs.fail-under) || '' }} \
+          ${{ inputs.compare == 'true' && '--compare' || '' }} \
+          ${{ inputs.min-severity != '' && format('--min-severity {0}', inputs.min-severity) || '' }} \
+          ${{ inputs.config != '' && format('--config {0}', inputs.config) || '' }} \
+          | tee "$RUNNER_TEMP/setup-doctor-report.json"
+        exit_code=${PIPESTATUS[0]}
+
+        node "${{ github.action_path }}/summarize.js" "$RUNNER_TEMP/setup-doctor-report.json" >> "$GITHUB_OUTPUT"
+
+        exit "$exit_code"
